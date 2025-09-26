@@ -77,18 +77,21 @@ class Resolver:
             logger.debug("Unpaywall failed: %s", e)
             return None
 
-    def resolve(self, ref_text: str) -> Dict[str, Any]:
+    def resolve(self, ref_text: str, hints: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        hints = hints or {}
         urls = extract_urls(ref_text)
-        arxiv_id = detect_arxiv_id(ref_text)
-        doi = extract_doi(ref_text)
-        title: Optional[str] = None
+        arxiv_id = hints.get("arxiv_id") or detect_arxiv_id(ref_text)
+        doi = normalize_doi(hints.get("doi") or extract_doi(ref_text))
+        title: Optional[str] = hints.get("title")
         pdf_url: Optional[str] = None
         sources: List[str] = []
 
         # If no DOI present, try Crossref search
         cr = None
         if not doi:
-            cr = self.crossref(ref_text)
+            # Prefer searching by explicit title if provided
+            query = title or ref_text
+            cr = self.crossref(query)
             if cr:
                 doi = normalize_doi(cr.get("DOI"))
                 title_list = cr.get("title") or []
@@ -139,4 +142,3 @@ class Resolver:
             "pdf_url": pdf_url,
             "sources": sources,
         }
-

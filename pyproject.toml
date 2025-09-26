@@ -16,9 +16,6 @@ urllib3 = ">=1.26,<3"
 chardet = "^5.2.0"
 idna = "^3.6"
 certifi = "^2024.2.2"
-PyPDF2 = "^3.0.1"
-"pdfminer.six" = "^20231228"
-regex = "^2024.5.15"
 rich = "^13.7.1"
 
 [tool.poetry.group.dev.dependencies]

@@ -5,7 +5,7 @@ Extract references from a research paper (PDF or URL), resolve DOIs/links, and d
 ## Features
 
 - Accepts a local PDF (`--pdf`) or a paper URL (`--url`).
-- Extracts the References/Bibliography section using heuristics.
+- Extracts the References/Bibliography section using GROBID (high accuracy).
 - Resolves references to DOIs via Crossref, detects arXiv IDs, and parses inline URLs.
 - Attempts to find and download open-access PDFs (arXiv, publisher links, Crossref links, Unpaywall optional).
 - Writes a JSON report mapping each reference to links and download status.
@@ -46,10 +46,12 @@ Options:
 - `--dry-run`: Don’t download, only extract/resolve and print report.
 - `--email EMAIL`: Contact email for Unpaywall; enables Unpaywall resolution for OA links.
 - `--timeout SEC`: Network timeout per request (default: 15).
+- `--grobid-url URL`: GROBID server URL (default: http://localhost:8070).
+- `--grobid-consolidate {0,1,2}`: GROBID citation consolidation level.
 
 ## Notes and Limitations
 
-- Reference extraction from PDFs is heuristic and may miss or merge entries, especially in two-column layouts. For higher accuracy, integrating GROBID is recommended.
+- GROBID must be running. Start with Docker: `docker run --rm -p 8070:8070 lfoppiano/grobid:latest`
 - Some publishers block automated downloads or require authentication. The tool prioritizes open-access sources (arXiv, Crossref-provided links, Unpaywall OA URLs).
 - Respect site terms; use `--dry-run` to inspect links before downloading.
 
@@ -66,4 +68,3 @@ Run tests:
 ```
 pytest -q
 ```
-

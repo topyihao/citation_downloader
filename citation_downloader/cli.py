@@ -11,9 +11,8 @@ from rich.console import Console
 from rich.progress import Progress
 
 from .downloader import attempt_download
+from .grobid import grobid_extract_references
 from .html_utils import fetch_url, find_pdf_link_in_html
-from .pdf_utils import extract_text_from_pdf
-from .ref_parser import extract_references
 from .reporting import write_report
 from .resolver import ResolveConfig, Resolver
 from .utils import ensure_dir
@@ -57,6 +56,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dry-run", action="store_true", help="Only resolve links, do not download")
     p.add_argument("--email", type=str, default=None, help="Contact email to enable Unpaywall API")
     p.add_argument("--timeout", type=int, default=15, help="Network timeout (seconds)")
+    p.add_argument("--grobid-url", type=str, default="http://localhost:8070", help="GROBID server URL")
+    p.add_argument("--grobid-consolidate", type=int, choices=[0, 1, 2], default=0, help="GROBID consolidateCitations level")
     return p
 
 
@@ -83,36 +84,46 @@ def run_cli(args: argparse.Namespace) -> int:
         local_pdf.write_bytes(data)
 
     console.print(f"[bold]Extracting text from:[/] {local_pdf}")
-    text = extract_text_from_pdf(local_pdf)
-    if not text.strip():
-        console.print("[red]Failed to extract text from PDF")
+    refs_raw: list[str] = []
+    hints_list: list[dict] = []
+
+    console.print("[bold]Using GROBID for reference extraction[/]")
+    grobid_refs = grobid_extract_references(
+        local_pdf,
+        url=args.grobid_url,
+        consolidate_citations=args.grobid_consolidate,
+        timeout=max(args.timeout, 30),
+    )
+    for r in grobid_refs:
+        refs_raw.append(r.get("raw") or "")
+        hints_list.append({k: r.get(k) for k in ("doi", "arxiv_id", "title") if r.get(k)})
+
+    if not refs_raw:
+        console.print("[red]GROBID found no references.")
         return 1
 
-    refs = extract_references(text)
-    if not refs:
-        console.print("[yellow]No references detected.")
-        return 0
-
     if args.max_refs is not None:
-        refs = refs[: args.max_refs]
+        refs_raw = refs_raw[: args.max_refs]
+        hints_list = hints_list[: args.max_refs]
 
-    console.print(f"[bold]Found references:[/] {len(refs)}")
+    console.print(f"[bold]Found references:[/] {len(refs_raw)}")
 
     resolver = Resolver(ResolveConfig(timeout=args.timeout, email=args.email))
 
     report = {
         "input": str(local_pdf if args.pdf else args.url),
-        "count": len(refs),
+        "count": len(refs_raw),
+        "engine": "grobid",
         "results": [],
     }
 
     with Progress() as progress:
-        task = progress.add_task("Resolving + downloading", total=len(refs))
-        for i, ref in enumerate(refs, start=1):
-            meta = resolver.resolve(ref.raw)
+        task = progress.add_task("Resolving + downloading", total=len(refs_raw))
+        for i, (raw, hints) in enumerate(zip(refs_raw, hints_list), start=1):
+            meta = resolver.resolve(raw, hints=hints)
             result = {
                 "index": i,
-                "reference": ref.raw,
+                "reference": raw,
                 "meta": meta,
             }
             if not args.dry_run:

@@ -96,7 +96,7 @@ def run_cli(args: argparse.Namespace) -> int:
     )
     for r in grobid_refs:
         refs_raw.append(r.get("raw") or "")
-        hints_list.append({k: r.get(k) for k in ("doi", "arxiv_id", "title") if r.get(k)})
+        hints_list.append({k: r.get(k) for k in ("doi", "arxiv_id", "title", "year") if r.get(k)})
 
     if not refs_raw:
         console.print("[red]GROBID found no references.")
@@ -108,7 +108,14 @@ def run_cli(args: argparse.Namespace) -> int:
 
     console.print(f"[bold]Found references:[/] {len(refs_raw)}")
 
-    resolver = Resolver(ResolveConfig(timeout=args.timeout, email=args.email))
+    import os
+    resolver = Resolver(
+        ResolveConfig(
+            timeout=args.timeout,
+            email=args.email,
+            s2_api_key=os.environ.get("SEMANTIC_SCHOLAR_API_KEY"),
+        )
+    )
 
     report = {
         "input": str(local_pdf if args.pdf else args.url),

@@ -6,7 +6,7 @@ Extract references from a research paper (PDF or URL), resolve DOIs/links, and d
 
 - Accepts a local PDF (`--pdf`) or a paper URL (`--url`).
 - Extracts the References/Bibliography section using GROBID (high accuracy).
-- Resolves references to DOIs via Crossref, detects arXiv IDs, and parses inline URLs.
+- Resolves references to DOIs via Crossref; also leverages OpenAlex and (optionally) Semantic Scholar for missing DOIs; detects arXiv IDs; parses inline URLs.
 - Attempts to find and download open-access PDFs (arXiv, publisher links, Crossref links, Unpaywall optional).
 - Writes a JSON report mapping each reference to links and download status.
 
@@ -48,6 +48,15 @@ Options:
 - `--timeout SEC`: Network timeout per request (default: 15).
 - `--grobid-url URL`: GROBID server URL (default: http://localhost:8070).
 - `--grobid-consolidate {0,1,2}`: GROBID citation consolidation level.
+
+### Optional integrations
+
+- OpenAlex: used automatically to help fill in missing DOIs.
+- Semantic Scholar: used automatically if the environment variable `SEMANTIC_SCHOLAR_API_KEY` is set. Example:
+
+```
+export SEMANTIC_SCHOLAR_API_KEY=sk_...
+```
 
 ## Notes and Limitations
 

@@ -88,6 +88,7 @@ def parse_tei_references(tei_xml: str) -> List[Dict[str, Any]]:
             "title": title,
             "doi": doi,
             "arxiv_id": arxiv_id,
+            "year": year,
         })
     return out
 
@@ -126,4 +127,3 @@ def grobid_extract_references(
     except Exception as e:
         logger.error("Failed to parse TEI: %s", e)
         return []
-

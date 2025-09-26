@@ -18,7 +18,10 @@ DOI_RE = re.compile(r"\b10\.\d{4,9}/[-._;()/:A-Z0-9]+\b", re.I)
 @dataclass
 class ResolveConfig:
     timeout: int = 15
-    email: Optional[str] = None  # for Unpaywall
+    email: Optional[str] = None  # for Unpaywall and OpenAlex mailto
+    s2_api_key: Optional[str] = None  # Semantic Scholar API key
+    use_openalex: bool = True
+    use_semantic_scholar: bool = True
 
 
 def normalize_doi(doi: str | None) -> Optional[str]:
@@ -64,6 +67,48 @@ class Resolver:
             logger.debug("Crossref query failed: %s", e)
         return None
 
+    def openalex(self, title: Optional[str], year: Optional[str]) -> Optional[Dict[str, Any]]:
+        if not self.cfg.use_openalex or not title:
+            return None
+        # Basic search by title; optionally filter by year
+        params = {"search": title, "per_page": 1}
+        if self.cfg.email:
+            params["mailto"] = self.cfg.email
+        if year and year.isdigit():
+            params["filter"] = f"publication_year:{year}"
+        url = "https://api.openalex.org/works"
+        try:
+            r = self.session.get(url, params=params, timeout=self.cfg.timeout)
+            r.raise_for_status()
+            data = r.json()
+            results = data.get("results") or []
+            if results:
+                return results[0]
+        except Exception as e:
+            logger.debug("OpenAlex search failed: %s", e)
+        return None
+
+    def semanticscholar(self, title: Optional[str], year: Optional[str]) -> Optional[Dict[str, Any]]:
+        if not self.cfg.use_semantic_scholar or not title or not self.cfg.s2_api_key:
+            return None
+        url = "https://api.semanticscholar.org/graph/v1/paper/search"
+        params = {
+            "query": title,
+            "limit": 1,
+            "fields": "title,year,doi,url,isOpenAccess,openAccessPdf"
+        }
+        headers = {"x-api-key": self.cfg.s2_api_key}
+        try:
+            r = self.session.get(url, params=params, headers=headers, timeout=self.cfg.timeout)
+            r.raise_for_status()
+            data = r.json()
+            papers = data.get("data") or []
+            if papers:
+                return papers[0]
+        except Exception as e:
+            logger.debug("Semantic Scholar search failed: %s", e)
+        return None
+
     def unpaywall(self, doi: str) -> Optional[Dict[str, Any]]:
         if not self.cfg.email:
             return None
@@ -83,6 +128,7 @@ class Resolver:
         arxiv_id = hints.get("arxiv_id") or detect_arxiv_id(ref_text)
         doi = normalize_doi(hints.get("doi") or extract_doi(ref_text))
         title: Optional[str] = hints.get("title")
+        year: Optional[str] = hints.get("year")
         pdf_url: Optional[str] = None
         sources: List[str] = []
 
@@ -107,6 +153,35 @@ class Resolver:
 
         else:
             sources.append("inline-doi")
+
+        # If still no DOI, try OpenAlex
+        if not doi:
+            oa = self.openalex(title, year)
+            if oa:
+                oa_doi = oa.get("doi")
+                if oa_doi:
+                    doi = normalize_doi(oa_doi)
+                    sources.append("openalex")
+                # pickup OA PDF if available
+                if not pdf_url:
+                    oa_open = oa.get("open_access") or {}
+                    if isinstance(oa_open, dict):
+                        pdf = oa_open.get("oa_url")
+                        if pdf:
+                            pdf_url = pdf
+
+        # If still no DOI, try Semantic Scholar (needs API key)
+        if not doi:
+            s2 = self.semanticscholar(title, year)
+            if s2:
+                s2_doi = s2.get("doi")
+                if s2_doi:
+                    doi = normalize_doi(s2_doi)
+                    sources.append("semanticscholar")
+                if not pdf_url:
+                    oa = s2.get("openAccessPdf") or {}
+                    if isinstance(oa, dict) and oa.get("url"):
+                        pdf_url = oa["url"]
 
         # If we have a DOI but no PDF link yet, try Unpaywall
         if doi and not pdf_url:

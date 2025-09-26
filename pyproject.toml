@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "citation-downloader"
+version = "0.1.0"
+description = "CLI to extract references from a paper (PDF or URL), resolve links/DOIs, and download cited PDFs."
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [
+  { include = "citation_downloader" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.14"
+requests = "^2.31.0"
+beautifulsoup4 = "^4.12.2"
+urllib3 = ">=1.26,<3"
+chardet = "^5.2.0"
+idna = "^3.6"
+certifi = "^2024.2.2"
+PyPDF2 = "^3.0.1"
+"pdfminer.six" = "^20231228"
+regex = "^2024.5.15"
+rich = "^13.7.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.4"
+ruff = "^0.6.2"
+
+[tool.poetry.scripts]
+citation-downloader = "citation_downloader.cli:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

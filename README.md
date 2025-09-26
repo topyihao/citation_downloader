@@ -26,6 +26,58 @@ Or with pip (inside a venv):
 pip install -e .
 ```
 
+## GROBID Setup
+
+This tool requires a running GROBID service (default: `http://localhost:8070`). Choose one option:
+
+### Option A — Docker (recommended)
+
+1) Install and start Docker Desktop
+
+2) Run GROBID:
+
+```
+docker run --rm -p 8070:8070 lfoppiano/grobid:latest
+```
+
+3) Verify it’s alive:
+
+```
+curl http://localhost:8070/api/isalive
+```
+
+Keep this terminal running while you use the CLI.
+
+### Option B — Without Docker (Java/Gradle)
+
+1) Install Java 17 and Gradle (macOS examples):
+
+```
+brew install openjdk@17 gradle
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+```
+
+2) Clone, build, and run GROBID:
+
+```
+git clone https://github.com/kermitt2/grobid.git
+cd grobid
+./gradlew clean install
+./gradlew run
+```
+
+3) Verify it’s alive:
+
+```
+curl http://localhost:8070/api/isalive
+```
+
+Notes:
+
+- The first request may be slower while models load.
+- Leave the server running in that terminal; stop with Ctrl+C when done.
+- If GROBID runs on a different host/port, pass `--grobid-url` to the CLI.
+
 ## Usage
 
 ```
